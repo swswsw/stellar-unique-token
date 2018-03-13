@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>change master signer weight</title>
+</head>
+<body>
+
+<p>change master signer weight to 0. this will make it no longer able to sign it.</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.8.0/stellar-sdk.js"></script>
+<script>console.log(StellarSdk);</script>
+
+
+<script type="text/javascript">
+
+
+
+//var StellarSdk = require('stellar-sdk');
+StellarSdk.Network.useTestNetwork();
+var server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+var sourceKeys = StellarSdk.Keypair
+  .fromSecret('SCBLMZZWWF6JS6DPMOMBZPTRMYZEMMFW7AQTE6EMJ6TPXDVNX5Y3HSIG');
+// pub key = GAQAIDUA7J25I3T26JGTOPTSH4DOWEXPVJWNTUAHFKMWDBT2KVESREWM
+
+
+server.loadAccount(sourceKeys.publicKey())
+  // If the account is not found, surface a nicer error message for logging.
+  .catch(StellarSdk.NotFoundError, function (error) {
+    throw new Error('The source account does not exist!');
+  })
+  // If there was no error, load up-to-date information on your account.
+  .then(function() {
+    return server.loadAccount(sourceKeys.publicKey());
+  })
+  .then(function(sourceAccount) {
+    // Start building the transaction.
+    var transaction = new StellarSdk.TransactionBuilder(sourceAccount)
+      .addOperation(StellarSdk.Operation.setOptions({
+    	masterWeight: 0, // Weight of the master key. 
+      }))
+      .build();
+    // Sign the transaction to prove you are actually the person sending it.
+    transaction.sign(sourceKeys);
+    // And finally, send it off to Stellar!
+    return server.submitTransaction(transaction);
+  })
+  .then(function(result) {
+    console.log('setOptions: Success! Results:', result);
+  })
+  .catch(function(error) {
+    console.error('setOptions: Something went wrong!', error);
+  });
+
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>set or read account data</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.8.0/stellar-sdk.js"></script>
+<script>console.log(StellarSdk);</script>
+
+<script type="text/javascript">
+//Configure StellarSdk to talk to the horizon instance hosted by Stellar.org
+//To use the live network, set the hostname to 'horizon.stellar.org'
+var server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+
+//Uncomment the following line to build transactions for the live network. Be
+//sure to also change the horizon hostname.
+//StellarSdk.Network.usePublicNetwork();
+StellarSdk.Network.useTestNetwork();
+
+
+var sourceKeys = StellarSdk.Keypair
+  .fromSecret('SD2MCL66642MEUP2KUXRECVE5JS2WZVYZ753F2OYZ2WZTV3JIDFHE5J5');
+//var destinationId = 'GDZTBZQJBVLQNCBHX4IYYZZ4GZJ2BXBYV3GG366JKDG3WSJQJVNX4O6V';
+console.log("account: ", sourceKeys.publicKey());
+
+
+// key/value pair to be stored in account data
+var dataPair = {
+	name: "data1", // string up to 64 bytes long
+	value: "http://stellar.org/sample_data/sample_data.json?network=testnet", // up to 64 bytes long
+}
+
+// need to trust the asset first (if it has not been trusted before).  
+// otherwise, the offer will fail with "op_buy_no_trust" in extras.result_codes
+// note: use changeTrust.  allowTrust is done by the asset issuer, not by user.
+server.loadAccount(sourceKeys.publicKey())
+  // If the account is not found, surface a nicer error message for logging.
+  .catch(StellarSdk.NotFoundError, function (error) {
+    throw new Error('The source account does not exist!');
+  })
+  // If there was no error, load up-to-date information on your account.
+  .then(function() {
+    return server.loadAccount(sourceKeys.publicKey());
+  })
+  .then(function(sourceAccount) {
+    // Start building the transaction.
+    var transaction = new StellarSdk.TransactionBuilder(sourceAccount)
+      .addOperation(StellarSdk.Operation.manageData({
+    	name: dataPair.name, 
+    	value: dataPair.value,
+      }))
+      .build();
+    // Sign the transaction to prove you are actually the person sending it.
+    transaction.sign(sourceKeys);
+    // And finally, send it off to Stellar!
+    return server.submitTransaction(transaction);
+  })
+  .then(function(result) {
+    console.log('manageData: Success! Results:', result);
+  })
+  .catch(function(error) {
+    console.error('manageData: Something went wrong!', error);
+  });
+
+
+// reading the data
+// note: this may read the data being written last time (not this time)
+server.accounts()
+	.accountId("GAW5HUNUWX3IBEO7HJSMUN4NGU7HVI4IEY5OSPGFFXR6S4CA6YMLATBS")
+	.call()
+	.then(function (account) {
+	  return account.data({key: 'data1'});
+	})
+	.then(function(dataValue) {
+	  console.log(dataValue);
+	  // dataValue.value is encoded in base64.  decode base64 to string
+	  // dataValue.value could also be binary
+	  let str = atob(dataValue.value);
+	  console.log("retrieved value: ", str);
+	})
+	.catch(function (err) {
+	  console.log(err);
+	});
+
+
+
+</script>
+
+</body>
+</html>

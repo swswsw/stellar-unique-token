@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>change trust</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.8.0/stellar-sdk.js"></script>
+<script>console.log(StellarSdk);</script>
+
+
+<script type="text/javascript">
+
+var MARKETS = {
+  CNY: ['GAREELUB43IRHWEASCFBLKHURCGMHE5IF6XSE7EXDLACYHGRHM43RFOX',],
+  JPY: ['GBVAOIACNSB7OVUXJYC5UE2D4YK2F7A24T7EE5YOMN4CE6GCHUTOUQXM'],
+  BTC: ['GDXTJEK4JZNSTNQAWA53RZNS2GIKTDRPEUWDXELFMKU52XNECNVDVXDI', 'GAUTUYY2THLF7SGITDFMXJVYH3LHDSMGEAKSBU267M2K7A3W543CKUEF', 'GBSTRH4QOTWNSVA6E4HFERETX4ZLSR3CIUBLK7AXYII277PFJC4BBYOG'],
+  XRP: ['GA7FCCMTTSUIC37PODEL6EOOSPDRILP6OQI5FWCWDDVDBLJV72W6RINZ'],
+};
+
+//---------------------------------------------------------------------------------------------------
+// instead of reading, we will just do hard-code for now
+var asset0_code = 'XLM';
+var asset1_code = 'CNY';
+//let asset0_code = url_get('asset0_code')
+//let asset1_code = url_get('asset1_code')
+
+
+// Because Stellar allows transaction in many currencies, you must
+// specify the asset type. The special "native" asset represents Lumens.
+var asset0 = new StellarSdk.Asset.native()
+var asset1 = new StellarSdk.Asset(asset1_code, MARKETS[asset1_code][0])
+
+
+
+//var StellarSdk = require('stellar-sdk');
+StellarSdk.Network.useTestNetwork();
+var server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+var sourceKeys = StellarSdk.Keypair
+  .fromSecret('SD2MCL66642MEUP2KUXRECVE5JS2WZVYZ753F2OYZ2WZTV3JIDFHE5J5');
+//var destinationId = 'GDZTBZQJBVLQNCBHX4IYYZZ4GZJ2BXBYV3GG366JKDG3WSJQJVNX4O6V';
+
+
+// need to trust the asset first (if it has not been trusted before).  
+// otherwise, the offer will fail with "op_buy_no_trust" in extras.result_codes
+// note: use changeTrust.  allowTrust is done by the asset issuer, not by user.
+server.loadAccount(sourceKeys.publicKey())
+  // If the account is not found, surface a nicer error message for logging.
+  .catch(StellarSdk.NotFoundError, function (error) {
+    throw new Error('The source account does not exist!');
+  })
+  // If there was no error, load up-to-date information on your account.
+  .then(function() {
+    return server.loadAccount(sourceKeys.publicKey());
+  })
+  .then(function(sourceAccount) {
+    // Start building the transaction.
+    var transaction = new StellarSdk.TransactionBuilder(sourceAccount)
+      .addOperation(StellarSdk.Operation.changeTrust({
+    	asset: asset1, // The asset of the trustline
+    	//limit: "10000", // [optional] The limit for the asset, defaults to max int64. If the limit is set to "0" it deletes the trustline.
+    	//source: sourceAccount.accountId(), // [optional] The source account (defaults to transaction source).
+      }))
+      .build();
+    // Sign the transaction to prove you are actually the person sending it.
+    transaction.sign(sourceKeys);
+    // And finally, send it off to Stellar!
+    return server.submitTransaction(transaction);
+  })
+  .then(function(result) {
+    console.log('allowTrust: Success! Results:', result);
+  })
+  .catch(function(error) {
+    console.error('allowTrust: Something went wrong!', error);
+  });
+
+
+
+</script>
+
+</body>
+</html>

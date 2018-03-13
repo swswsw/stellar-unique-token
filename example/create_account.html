@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.8.0/stellar-sdk.js"></script>
+<script>console.log(StellarSdk);</script>
+
+
+</head>
+
+<body>
+
+
+
+<script type="text/javascript">
+
+ 
+// create a completely new and unique pair of keys
+// see more about KeyPair objects: https://stellar.github.io/js-stellar-sdk/Keypair.html
+var pair = StellarSdk.Keypair.random();
+
+var secretKey = pair.secret();
+var publicKey = pair.publicKey();
+
+console.log(secretKey);
+console.log(publicKey);
+
+this.secretKey = secretKey;
+this.publicKey = publicKey;
+
+
+
+</script>
+
+</body>
+
+</html>
