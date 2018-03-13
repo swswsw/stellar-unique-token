@@ -1,4 +1,4 @@
-# tellar-unique-token
+# stellar-unique-token
 Unique (non-fungible) token standard for stellar.
 
 This proposal seeks to create a simple standard specification for Non-fungible tokens (NFT) on Stellar.  The proposal is simple to implement and requires no modification to the Stellar protocol.
