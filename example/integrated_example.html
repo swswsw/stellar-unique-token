@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+</head>
+<body>
+
+</body>
+
+<script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.8.0/stellar-sdk.js"></script>
+<script>console.log(StellarSdk);</script>
+
+
+<script type="text/javascript">
+
+var server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+
+//Uncomment the following line to build transactions for the live network. Be
+//sure to also change the horizon hostname.
+//StellarSdk.Network.usePublicNetwork();
+StellarSdk.Network.useTestNetwork();
+
+// 1. create an issuer account & a distributor account
+// 2. issuer account creates a new asset
+// 3. distributor trusts issuer
+// 4. issuer sends asset to distributor with a memo.  memo points to the metadata
+// 5. change the weight of the issuer to 0 so issuer can't issue any more.
+
+// alternative #1
+// 2.5 issuer writes the data into account data (url of metadata is written into account data)
+// 4. issuer sends asset to distributor (no need to add memo)
+
+
+
+// create new account as issuer account
+// create a completely new and unique pair of keys
+// see more about KeyPair objects: https://stellar.github.io/js-stellar-sdk/Keypair.html
+var issuerKey = StellarSdk.Keypair.random();
+
+var issuerSecretKey = issuerKey.secret();
+var issuerPublicKey = issuerKey.publicKey();
+
+console.log("creating issuer account");
+console.log("issuer secretkey: ", issuerSecretKey);
+console.log("issuer pubkey: ", issuerPublicKey);
+
+// create distributor account
+var distributorKey = StellarSdk.Keypair.random();
+
+var distributorSecretKey = distributorKey.secret();
+var distributorPublicKey = distributorKey.publicKey();
+
+console.log("creating distributor account");
+console.log("distributor secretkey: ", distributorSecretKey);
+console.log("distributor pubkey: ", distributorPublicKey);
+
+// activating the 2 accounts for testnet using friendbot
+friendbot(issuerPublicKey, onFriendbotSuccessIssuer, onFriendbotErrorIssuer);
+
+function onFriendbotSuccessIssuer(data) {
+	friendbot(distributorPublicKey, onFriendbotSuccessDistributor, onFriendbotErrorDistributor);
+}
+
+function onFriendbotErrorIssuer(errorThrown) {
+	// do nothing. error already logged.
+}
+
+function onFriendbotSuccessDistributor(data) {
+	createToken();
+}
+
+function onFriendbotErrorDistributor(errorThrown) {
+	// do nothing. error already logged.
+}
+
+function createToken() {
+	//var issuerKey = StellarSdk.Keypair.fromSecret('SC2KUVYEJLZBAO5W6FG2ZDDZIZUDGCBCUWUCTL57TOEPUU3FDLALPPMN');
+	
+	//var distributorKey = StellarSdk.Keypair.fromSecret('SDESAZI6JM6UN7F4ELAWFEQBHZJ7H6WCODWFCCGVNJOD7D4JQXUMZP3L');
+	
+	// create new asset
+	var asset1 = new StellarSdk.Asset('20180311', issuerKey.publicKey());
+	
+	//First, the receiving account must trust the asset
+	server.loadAccount(distributorKey.publicKey())
+	  .then(function(receiver) {
+	    var transaction = new StellarSdk.TransactionBuilder(receiver)
+	      // The `changeTrust` operation creates (or alters) a trustline
+	      // The `limit` parameter below is optional
+	      .addOperation(StellarSdk.Operation.changeTrust({
+	        asset: asset1,
+	        limit: '0.0000001'
+	      }))
+	      .build();
+	    transaction.sign(distributorKey);
+	    return server.submitTransaction(transaction);
+	  })
+	
+	  // Second, the issuing account actually sends a payment using the asset
+	  .then(function() {
+	    return server.loadAccount(issuerKey.publicKey())
+	  })
+	  .then(function(issuer) {
+	    var transaction = new StellarSdk.TransactionBuilder(issuer)
+	      .addOperation(StellarSdk.Operation.payment({
+	        destination: distributorKey.publicKey(),
+	        asset: asset1,
+	        amount: '0.0000001'
+	      }))
+	      // add a memo (https://www.stellar.org/developers/learn/concepts/transactions.html)
+	   	  .addMemo(StellarSdk.Memo.text('metadata url'))
+	      .build();
+	    transaction.sign(issuerKey);
+	    return server.submitTransaction(transaction);
+	  })
+	  .catch(function(error) {
+	    console.error('Error!', error);
+	  });
+
+}
+
+
+
+// distributor trust issuer
+
+/*
+
+// need to trust the asset first (if it has not been trusted before).  
+// otherwise, the offer will fail with "op_buy_no_trust" in extras.result_codes
+// note: use changeTrust.  allowTrust is done by the asset issuer, not by user.
+server.loadAccount(distributorKey.publicKey())
+  // If the account is not found, surface a nicer error message for logging.
+  .catch(StellarSdk.NotFoundError, function (error) {
+    throw new Error('The source account does not exist!');
+  })
+  // If there was no error, load up-to-date information on your account.
+  .then(function() {
+    return server.loadAccount(distributorKey.publicKey());
+  })
+  .then(function(sourceAccount) {
+    // Start building the transaction.
+    var transaction = new StellarSdk.TransactionBuilder(sourceAccount)
+      .addOperation(StellarSdk.Operation.changeTrust({
+    	asset: asset1, // The asset of the trustline
+    	//limit: "10000", // [optional] The limit for the asset, defaults to max int64. If the limit is set to "0" it deletes the trustline.
+    	//source: sourceAccount.accountId(), // [optional] The source account (defaults to transaction source).
+      }))
+      .build();
+    // Sign the transaction to prove you are actually the person sending it.
+    transaction.sign(distributorKey);
+    // And finally, send it off to Stellar!
+    return server.submitTransaction(transaction);
+  })
+  .then(function(result) {
+    console.log('allowTrust: Success! Results:', result);
+  })
+  .catch(function(error) {
+    console.error('allowTrust: Something went wrong!', error);
+  });
+
+*/
+
+/**
+ * use friendbot to activate the account for given address
+ */
+function friendbot(address, success, error) {
+  var url = "https://horizon-testnet.stellar.org/friendbot?addr=" + address;
+  $.getJSON(url, function(data) {})
+    .done(function(data) {
+      console.log("friendbot success for address:", address, ".  returns: \n", data);
+      success(data);
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+      console.log("friendbot error: ", errorThrown);
+      error(errorThrown);
+    })
+}
+
+
+</script>
+
+</html>
