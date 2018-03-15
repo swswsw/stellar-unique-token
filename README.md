@@ -99,3 +99,4 @@ server.loadAccount(sourceKeys.publicKey())
   });
 ```
 
+More examples can be found in [example folder](./example/)
