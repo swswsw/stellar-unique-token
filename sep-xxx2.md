@@ -39,7 +39,7 @@ The proposal aims to:
 
 
 	1. issuer issues an asset.  (see https://www.stellar.org/developers/guides/concepts/assets.html)
-	2. the metadata of the asset (description, etc) are place in an ipfs or put on a certain url.
+	2. the metadata of the asset (description, etc) are stored on ipfs or stored on somewhere that can be accessed through an url.
 	3. the metadata url is added to the issuer's account data key-value data (using manageData operation in REST api) 
 	4. issuer's multisig weight is changed so that the issuer can no longer issue the token.
 
